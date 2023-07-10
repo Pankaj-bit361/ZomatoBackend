@@ -30,10 +30,8 @@ def showmenu():
     if request.method == "GET":
         collection = mongo.db['dish']
         data = list(collection.find())
-        print(data)
         for item in data:
-            item['_id'] = str(item['_id'])
-        
+            item['_id'] = str(item['_id'])        
         return jsonify(data)
 
     
@@ -68,12 +66,20 @@ def updateDish(id):
 def oderDish():
     if request.method == "POST":
         data = request.get_json()
-        collection = mongo.db['dish']
         collection2=mongo.db["order"]
         dish = mongo.db["dish"].find_one({"Name": data["food"]})
+        value=int(dish["Quantity"])
+        finddata=list(collection2.find())
+        for i in range(len(finddata)):
+           if finddata[i]["email"]==data["email"] and finddata[i]["food"]==data["food"]:
+               return jsonify("Dish already exist")
+
         if dish:
-            dish["Quantity"] -= data["Quantity"]
-            data["Price"] = dish["Price"] * data["Quantity"]
+            mongo.db["dish"].update_one({"Name":data["food"]},{"$set":{"Quantity":value-1}})
+            # {"Name": name}, {"$set": {"status": "preparing"}}
+            data["Quantity"]=1
+            data["Price"] = dish["Price"] 
+            data["Img"]=dish["Img"]
             data["status"] = "received"
             collection2.insert_one(data)
             return jsonify("Order Created Successfully")
@@ -81,32 +87,46 @@ def oderDish():
         return jsonify("food not found")
 
 
-@app.route("/allorder", methods=["GET"])
-def getOrder():
+@app.route("/allorder/<email>", methods=["GET"])
+def getOrder(email):
+  
     collection = mongo.db.order
-    data = list(collection.find())
-    print(data)
+    data = list(collection.find({"email":email}))
     for item in data:
             item['_id'] = str(item['_id'])
         
     return jsonify(data)
 
 
-@app.route("/showlogin", methods=["GET"])
-def getOrder1():
-    collection = mongo.db.login
-    logins = collection.find()
-    return jsonify([login for login in logins])
+
+@app.route("/all",methods=["GET"])
+def getAll():
+    collection=mongo.db.order
+    data=list(collection.find())
+   
+    for i in data:
+        i["_id"]=str(i["_id"])
+    
+    return jsonify(data)
+
+# @app.route("/showlogin", methods=["GET"])
+# def getOrder1():
+#     collection = mongo.db.login
+#     logins = collection.find()
+#     return jsonify([login for login in logins])
 
 
 @app.route("/login", methods=["POST"])
 def getlogin():
     logindata = request.get_json()
     collection = mongo.db.login
+    if logindata["email"]=="admin@gmail.com" and logindata["password"]=="pankaj":
+       return jsonify("Welcome Admin","Pankaj Vashisht") 
 
     login = collection.find_one({"email": logindata["email"], "password": logindata["password"]})
     if login:
-        return jsonify("Login Successful", logindata)
+        login["_id"]=str(login["_id"])
+        return jsonify("Login Successful", login)
 
     return jsonify("Wrong Credentials", "")
 
@@ -124,34 +144,64 @@ def getSignup():
     return jsonify("Successfully Created Account")
 
 
-@app.route("/updateOrder/<name>", methods=["PATCH"])
-def UpdateOrder(name):
-    collection = mongo.db.order
-    order = collection.find_one({"Name": name})
 
+@app.route("/updateOrderQuan/<string:_id>",methods=["PATCH"])
+def updateQuantity(_id):
+    collection = mongo.db.order
+    order1 =collection.find_one({"_id": ObjectId(_id)})
+    dish=mongo.db.dish.find_one({"Name":order1["food"]})
+  
+    ok=int(order1["Quantity"])+1
+    ok=ok*int(dish["Price"])
+
+    order2 = collection.update_one({"_id": ObjectId(_id)},{"$set":{"Quantity":order1["Quantity"]+1,"Price":ok}})
+    dish2=mongo.db.dish.update_one({"Name":order1["food"]},{"$set":{"Quantity":dish["Quantity"]-1}})
+    return jsonify("Quantity Updated successfully")
+
+
+
+@app.route("/updateOrderQuannegative/<string:_id>",methods=["PATCH"])
+def updateQuantitynegative(_id):
+    collection = mongo.db.order
+    order1 =collection.find_one({"_id": ObjectId(_id)})
+    dish=mongo.db.dish.find_one({"Name":order1["food"]})
+  
+    ok=int(order1["Quantity"])-1
+    ok=ok*int(dish["Price"])
+    order2 = collection.update_one({"_id": ObjectId(_id)},{"$set":{"Quantity":order1["Quantity"]-1,"Price":ok}})
+    dish2=mongo.db.dish.update_one({"Name":order1["food"]},{"$set":{"Quantity":dish["Quantity"]+1}})
+    return jsonify("Quantity Updated successfully")
+
+
+
+
+@app.route("/updateOrder/<email>/<value>", methods=["PATCH"])
+def UpdateOrder(email,value):
+    collection = mongo.db.order
+    order = collection.find({"email": email})
+    print(order)
     if order:
-        if order["status"] == "received":
-            order["status"] = "preparing"
-            collection.update_one({"Name": name}, {"$set": {"status": "preparing"}})
-            return jsonify("Order Status changed successfully: Preparing")
-        elif order["status"] == "preparing":
-            order["status"] = "ready for pickup"
-            collection.update_one({"Name": name}, {"$set": {"status": "ready for pickup"}})
-            return jsonify("Order Status changed successfully: Ready for Pickup")
-        elif order["status"] == "ready for pickup":
-            order["status"] = "delivered"
-            collection.update_one({"Name": name}, {"$set": {"status": "delivered"}})
-            return jsonify("Order Status changed successfully: Delivered")
-        else:
-            return jsonify("Order already delivered")
+        
+        collection.update_many({"email": email}, {"$set": {"status": value}})
+        return jsonify("order status Changed Successfully")
+       
 
     return jsonify("Order with this name doesn't exist")
 
 
+@app.route("/deleteOrder/<string:id>/<food>",methods=["DELETE"])
+def deleteOrder(id,food):
+    #body=request.get_json()
 
+    data=mongo.db.order.find_one({"_id":ObjectId(id)})
+    val=int(data["Quantity"])
+    dish=mongo.db.dish.find_one({"Name":food})
+    val2=int(dish["Quantity"])
 
-
-
+    dish2=mongo.db.dish.update_one({"Name":food},{"$set":{"Quantity":val+val2}})
+    val3=mongo.db.order.delete_one({"_id":ObjectId(id)})
+    return jsonify("dish deleted successfully")
+     
 
 if __name__ == '__main__':
     app.run(port=8080)
