@@ -180,7 +180,6 @@ def updateQuantitynegative(_id):
 def UpdateOrder(email,value,time):
     collection = mongo.db.Paid
     order = collection.find({"time":time})
-    print(order)
     if order:
         
         collection.update_many({"time":time}, {"$set": {"status": value}})
