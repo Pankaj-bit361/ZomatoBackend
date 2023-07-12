@@ -218,6 +218,14 @@ def getCheck(email):
     return jsonify("Order Placed Successfully")
 
 
+@app.route('/getOrderedData',methods=["GET"])
+def getAlldata():
+      collection=mongo.db["Paid"]
+      data=list(collection.find())
+      for i in data:
+          i["_id"]=str(i["_id"])
+
+      return jsonify(data)    
 
 
 if __name__ == '__main__':
