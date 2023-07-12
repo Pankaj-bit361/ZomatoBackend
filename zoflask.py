@@ -22,7 +22,7 @@ def adddish():
         collection = mongo.db['dish']
         data = request.get_json()
         inserted_document = collection.insert_one(data)
-        return jsonify("Dish has been added successfully")
+        return jsonify('Dish has been added successfully')
 
 
 @app.route("/menu", methods=["GET"])
