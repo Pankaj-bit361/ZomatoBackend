@@ -179,7 +179,7 @@ def updateQuantitynegative(_id):
 @app.route("/updateOrder/<email>/<time>/<value>", methods=["PATCH"])
 def UpdateOrder(email,value,time):
     collection = mongo.db.Paid
-    order = collection.find({"email": email,"time":time})
+    order = collection.find({"time":time})
     print(order)
     if order:
         
