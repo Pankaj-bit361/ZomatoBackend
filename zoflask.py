@@ -3,6 +3,7 @@ import pickle
 from flask_cors import CORS
 from flask_pymongo import PyMongo
 from bson import ObjectId
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -201,7 +202,23 @@ def deleteOrder(id,food):
     dish2=mongo.db.dish.update_one({"Name":food},{"$set":{"Quantity":val+val2}})
     val3=mongo.db.order.delete_one({"_id":ObjectId(id)})
     return jsonify("dish deleted successfully")
-     
+
+
+@app.route("/getCheckout/<email>",methods=["GET"])    
+def getCheck(email):
+    print(email)
+    collection1=mongo.db["Paid"]
+    collection2 = mongo.db.order
+    data = list(collection2.find({"email": email}))
+    now=str(datetime.now())
+    for i in data:
+        i["time"]=now
+    inserted=collection1.insert_many(data)
+    deleted=collection2.delete_many({"email":email})
+    return jsonify("Order Placed Successfully")
+
+
+
 
 if __name__ == '__main__':
-    app.run(port=8080)
+    app.run(port=8000)
